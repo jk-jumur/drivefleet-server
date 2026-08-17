@@ -1,33 +1,66 @@
-import { MongoClient } from "mongodb";
+ import { MongoClient } from "mongodb";
+
 import "dotenv/config";
+
+
 
 const uri = process.env.MONGODB_URI;
 
+
+
 if (!uri) {
-  throw new Error("MONGODB_URI is not defined in .env");
+
+throw new Error("MONGODB_URI is not defined in .env");
+
 }
+
+
 
 const client = new MongoClient(uri);
 
+
+
 let db;
 
+
+
 const connectDB = async () => {
-  try {
-    if (db) {
-      return db;
-    }
 
-    await client.connect();
+try {
 
-    db = client.db("drivefleet");
+if (db) {
 
-    console.log("MongoDB connected successfully");
+return db;
 
-    return db;
-  } catch (error) {
-    console.error("MongoDB connection failed:", error);
-    throw error;
-  }
+}
+
+
+
+// await client.connect();
+
+
+
+db = client.db("drivefleet");
+
+
+
+console.log("MongoDB connected successfully");
+
+
+
+return db;
+
+} catch (error) {
+
+console.error("MongoDB connection failed:", error);
+
+throw error;
+
+}
+
 };
 
-export  default connectDB; 
+
+
+export default connectDB; 
+
