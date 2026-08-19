@@ -3,12 +3,14 @@ import express from "express";
 import {
   addCar,
   getAllCars,
+  getCarById,
 } from "../controllers/carController.js";
 
 const router = express.Router();
 
-// Public route
+// Public routes
 router.get("/", getAllCars);
+router.get("/:id", getCarById); 
 
 // Temporary private route
 router.post("/", addCar);
