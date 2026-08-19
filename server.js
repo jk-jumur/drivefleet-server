@@ -8,6 +8,9 @@ import cookieParser from "cookie-parser";
 import "dotenv/config";
 import connectDB from "./config/db.js";
 import carRoutes from "./routes/carRoutes.js";
+import bookingRoutes from "./routes/bookingRoutes.js";
+
+
 
 const app = express();
 
@@ -31,6 +34,10 @@ app.get("/", (req, res) => {
 
 // Car routes
 app.use("/api/cars", carRoutes);
+ 
+//bookings routes
+
+app.use("/api/bookings", bookingRoutes);
 
 // Start server
 const startServer = async () => {
