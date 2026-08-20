@@ -127,3 +127,69 @@ export const getCarById = async (req, res) => {
     });
   }
 };
+
+
+// ==========================================
+// Get My Added Cars (New Added)
+// ==========================================
+export const getMyAddedCars = async (req, res) => {
+  try {
+    const email = req.query.email;
+    const db = getDB();
+
+    const cars = await db
+      .collection("cars")
+      .find({ ownerEmail: email })
+      .toArray();
+
+    res.status(200).json({
+      success: true,
+      cars,
+    });
+  } catch (error) {
+    console.error("Get my added cars error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch your added cars.",
+    });
+  }
+};
+
+
+// ==========================================
+// Delete Car by ID (New Added)
+// ==========================================
+export const deleteCar = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid car ID format.",
+      });
+    }
+
+    const db = getDB();
+    const result = await db.collection("cars").deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Car not found or already deleted.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Car deleted successfully.",
+      result,
+    });
+  } catch (error) {
+    console.error("Delete car error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete car.",
+    });
+  }
+};
