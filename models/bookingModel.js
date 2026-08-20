@@ -1,22 +1,27 @@
 const createBookingDocument = ({
   carId,
+  userName,
   userEmail,
   carName,
   image,
-  totalPrice,
+  dailyRentPrice,
   driverNeeded,
   specialNote,
 }) => {
   return {
-    carId: carId.trim(),
+    carId,
+    userName,
     userEmail: userEmail.trim().toLowerCase(),
-    carName: carName.trim(),
-    image: image.trim(),
-    totalPrice: Number(totalPrice),
+
+    carName,
+    image,
+    dailyRentPrice: Number(dailyRentPrice),
+
     driverNeeded,
-    specialNote: specialNote ? specialNote.trim() : "",
-    
-    // Booking time
+    specialNote: specialNote?.trim() || "",
+
+    bookingStatus: "Pending",
+
     bookingDate: new Date(),
   };
 };

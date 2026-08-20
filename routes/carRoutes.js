@@ -5,18 +5,64 @@ import {
   getAllCars,
   getCarById,
   getMyAddedCars,
+  updateCar,
   deleteCar,
 } from "../controllers/carController.js";
 
+import { verifyToken } from "../middleware/verifyToken.js";
+import { verifyOwner } from "../middleware/verifyOwner.js";
+
 const router = express.Router();
 
-// Public routes
-router.get("/", getAllCars);
-router.get("/my-added-cars", getMyAddedCars); // user added car
-router.get("/:id", getCarById); 
+// =====================================================
+// PUBLIC ROUTES
+// =====================================================
 
-// Private routes
-router.post("/", addCar);
-router.delete("/:id", deleteCar); // delete car route
+// Get all cars
+router.get("/", getAllCars);
+
+// Get single car
+router.get("/:id", getCarById);
+
+
+// =====================================================
+// PRIVATE ROUTES
+// =====================================================
+
+// My added cars
+// IMPORTANT: Must come before /:id
+router.get(
+  "/my-added-cars",
+  verifyToken,
+  getMyAddedCars
+);
+
+// Add new car
+router.post(
+  "/",
+  verifyToken,
+  addCar
+);
+
+
+// =====================================================
+// OWNER ONLY ROUTES
+// =====================================================
+
+// Update car
+router.put(
+  "/:id",
+  verifyToken,
+  verifyOwner,
+  updateCar
+);
+
+// Delete car
+router.delete(
+  "/:id",
+  verifyToken,
+  verifyOwner,
+  deleteCar
+);
 
 export default router;

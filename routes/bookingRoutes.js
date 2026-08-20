@@ -1,12 +1,38 @@
 import express from "express";
-import { createBooking, getBookingsByUser } from "../controllers/bookingController.js";
+
+import {
+  createBooking,
+  getBookingsByUser,
+  getBookingById,
+} from "../controllers/bookingController.js";
+
+import { verifyToken } from "../middleware/verifyToken.js";
 
 const router = express.Router();
 
-// POST: new booking create and save 
-router.post("/", createBooking);
 
-// GET:  user booking fetch
-router.get("/", getBookingsByUser);
+// Create booking
+router.post(
+  "/",
+  verifyToken,
+  createBooking
+);
+
+
+// Get logged-in user's bookings
+router.get(
+  "/",
+  verifyToken,
+  getBookingsByUser
+);
+
+
+// Get single booking
+router.get(
+  "/:id",
+  verifyToken,
+  getBookingById
+);
+
 
 export default router;

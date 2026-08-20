@@ -2,7 +2,10 @@ import { ObjectId } from "mongodb";
 import { getDB } from "../config/db.js";
 import createCarDocument from "../models/carModel.js";
 
-// Add a new car
+// =====================================================
+// 1. ADD NEW CAR
+// =====================================================
+
 export const addCar = async (req, res) => {
   try {
     const {
@@ -16,6 +19,15 @@ export const addCar = async (req, res) => {
       availabilityStatus,
     } = req.body;
 
+    // Check authenticated user
+    if (!req.user?.email) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: User information not found.",
+      });
+    }
+
+    // Validate required fields
     if (
       !carName ||
       !dailyRentPrice ||
@@ -32,6 +44,9 @@ export const addCar = async (req, res) => {
       });
     }
 
+    // IMPORTANT:
+    // owner information comes from JWT.
+    // Do NOT trust frontend ownerEmail/ownerName.
     const carData = createCarDocument({
       carName,
       dailyRentPrice,
@@ -41,13 +56,16 @@ export const addCar = async (req, res) => {
       pickupLocation,
       description,
       availabilityStatus,
-     ownerName: "DriveFleet User",
-     ownerEmail: "user@drivefleet.com",
+
+      ownerName: req.user.name || "DriveFleet User",
+      ownerEmail: req.user.email,
     });
 
     const db = getDB();
 
-    const result = await db.collection("cars").insertOne(carData);
+    const result = await db
+      .collection("cars")
+      .insertOne(carData);
 
     res.status(201).json({
       success: true,
@@ -67,15 +85,34 @@ export const addCar = async (req, res) => {
   }
 };
 
+// =====================================================
+// 2. GET ALL CARS - PUBLIC
+// =====================================================
 
-// Get all cars
 export const getAllCars = async (req, res) => {
   try {
     const db = getDB();
 
+    const { search, type } = req.query;
+
+    let query = {};
+
+    // Search by car name
+    if (search) {
+      query.carName = {
+        $regex: search,
+        $options: "i",
+      };
+    }
+
+    // Filter by car type
+    if (type) {
+      query.carType = type;
+    }
+
     const cars = await db
       .collection("cars")
-      .find({})
+      .find(query)
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -93,7 +130,10 @@ export const getAllCars = async (req, res) => {
   }
 };
 
-// Get single car by ID
+// =====================================================
+// 3. GET SINGLE CAR - PUBLIC
+// =====================================================
+
 export const getCarById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -106,7 +146,12 @@ export const getCarById = async (req, res) => {
     }
 
     const db = getDB();
-    const car = await db.collection("cars").findOne({ _id: new ObjectId(id) });
+
+    const car = await db
+      .collection("cars")
+      .findOne({
+        _id: new ObjectId(id),
+      });
 
     if (!car) {
       return res.status(404).json({
@@ -121,6 +166,7 @@ export const getCarById = async (req, res) => {
     });
   } catch (error) {
     console.error("Get car by ID error:", error);
+
     res.status(500).json({
       success: false,
       message: "Failed to fetch car details.",
@@ -128,18 +174,34 @@ export const getCarById = async (req, res) => {
   }
 };
 
+// =====================================================
+// 4. GET MY ADDED CARS - PRIVATE
+// =====================================================
 
-// ==========================================
-// Get My Added Cars (New Added)
-// ==========================================
 export const getMyAddedCars = async (req, res) => {
   try {
-    const email = req.query.email;
+
+     
+    // Get email from verified JWT
+    const userEmail = req.user?.email;
+
+    if (!userEmail) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: User email not found.",
+      });
+    }
+
     const db = getDB();
 
     const cars = await db
       .collection("cars")
-      .find({ ownerEmail: email })
+      .find({
+        ownerEmail: userEmail,
+      })
+      .sort({
+        createdAt: -1,
+      })
       .toArray();
 
     res.status(200).json({
@@ -147,7 +209,11 @@ export const getMyAddedCars = async (req, res) => {
       cars,
     });
   } catch (error) {
-    console.error("Get my added cars error:", error);
+    console.error(
+      "Get my added cars error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: "Failed to fetch your added cars.",
@@ -155,10 +221,91 @@ export const getMyAddedCars = async (req, res) => {
   }
 };
 
+// =====================================================
+// 5. UPDATE CAR - PRIVATE
+// =====================================================
 
-// ==========================================
-// Delete Car by ID (New Added)
-// ==========================================
+export const updateCar = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid car ID format.",
+      });
+    }
+
+    if (!req.user?.email) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: User information not found.",
+      });
+    }
+
+    const updatedData = {
+      ...req.body,
+      updatedAt: new Date(),
+    };
+
+    // Never allow frontend to change ownership
+    delete updatedData.ownerEmail;
+    delete updatedData.ownerName;
+    delete updatedData._id;
+
+    const db = getDB();
+
+    const result = await db
+      .collection("cars")
+      .updateOne(
+        {
+          _id: new ObjectId(id),
+          ownerEmail: req.user.email,
+        },
+        {
+          $set: updatedData,
+        }
+      );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Car not found or you are not the owner.",
+      });
+    }
+
+    // Get the updated car document
+    const updatedCar = await db
+      .collection("cars")
+      .findOne({
+        _id: new ObjectId(id),
+        ownerEmail: req.user.email,
+      });
+
+    res.status(200).json({
+      success: true,
+      message: "Car updated successfully.",
+      car: updatedCar,
+    });
+  } catch (error) {
+    console.error(
+      "Update car error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update car.",
+    });
+  }
+};
+
+
+// =====================================================
+// 6. DELETE CAR - PRIVATE
+// =====================================================
+
 export const deleteCar = async (req, res) => {
   try {
     const { id } = req.params;
@@ -170,13 +317,27 @@ export const deleteCar = async (req, res) => {
       });
     }
 
+    if (!req.user?.email) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: User information not found.",
+      });
+    }
+
     const db = getDB();
-    const result = await db.collection("cars").deleteOne({ _id: new ObjectId(id) });
+
+    const result = await db
+      .collection("cars")
+      .deleteOne({
+        _id: new ObjectId(id),
+        ownerEmail: req.user.email,
+      });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({
         success: false,
-        message: "Car not found or already deleted.",
+        message:
+          "Car not found or you are not the owner.",
       });
     }
 
@@ -186,7 +347,11 @@ export const deleteCar = async (req, res) => {
       result,
     });
   } catch (error) {
-    console.error("Delete car error:", error);
+    console.error(
+      "Delete car error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: "Failed to delete car.",
